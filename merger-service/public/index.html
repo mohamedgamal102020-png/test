@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>خدمة دمج الفيديوهات</title>
+<!-- خط عربي مع بدائل نظامية تعمل دون شبكة -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* ===== الثيم الداكن الحديث: تدرجات سماوي/بنفسجي ===== */
+:root {
+  --bg-0: #07090f;
+  --bg-1: #0d1220;
+  --card: rgba(20, 26, 45, .82);
+  --card-border: rgba(124, 141, 190, .18);
+  --text: #eef1fb;
+  --muted: #9aa5c4;
+  --cyan: #22d3ee;
+  --purple: #a78bfa;
+  --pink: #f472b6;
+  --ok: #34d399;
+  --err: #f87171;
+  --grad: linear-gradient(135deg, #22d3ee 0%, #818cf8 55%, #a78bfa 100%);
+  --radius: 16px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: "Tajawal", "Segoe UI", Tahoma, Arial, sans-serif;
+  background:
+    radial-gradient(900px 480px at 85% -10%, rgba(167, 139, 250, .16), transparent 60%),
+    radial-gradient(760px 420px at 8% 0%, rgba(34, 211, 238, .13), transparent 55%),
+    linear-gradient(180deg, var(--bg-1), var(--bg-0));
+  color: var(--text);
+  min-height: 100vh;
+  line-height: 1.65;
+}
+main { max-width: 880px; margin: 0 auto; padding: 24px 18px 80px; }
+header { padding: 34px 18px 8px; text-align: center; }
+.logo-badge {
+  width: 58px; height: 58px; border-radius: 18px; margin: 0 auto 14px;
+  background: var(--grad); display: grid; place-items: center; font-size: 26px;
+  box-shadow: 0 10px 34px rgba(96, 105, 246, .45);
+}
+h1 { font-size: 30px; font-weight: 800; letter-spacing: -.4px;
+  background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.subtitle { color: var(--muted); margin-top: 6px; font-size: 15px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
+.chip {
+  font-size: 12.5px; color: var(--muted); padding: 5px 12px; border-radius: 999px;
+  background: rgba(34, 211, 238, .07); border: 1px solid var(--card-border);
+}
+.chip b { color: var(--cyan); font-weight: 700; }
+
+.card {
+  background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius);
+  padding: 22px; margin-top: 20px; backdrop-filter: blur(8px);
+  box-shadow: 0 18px 44px rgba(3, 6, 16, .45);
+}
+.card h2 { font-size: 17px; margin-bottom: 14px; display: flex; align-items: center; gap: 9px; }
+.card h2 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--grad); }
+
+/* ===== صف إضافة رابط ===== */
+.url-row { display: flex; gap: 10px; }
+.input, .btn {
+  font-family: inherit; font-size: 14.5px; border-radius: 12px; outline: none;
+  transition: box-shadow .2s, transform .06s, border-color .2s;
+}
+.input {
+  flex: 1; padding: 12px 14px; color: var(--text);
+  background: rgba(8, 11, 22, .7); border: 1px solid var(--card-border); direction: ltr; text-align: left;
+}
+.input:focus { border-color: rgba(34, 211, 238, .6); box-shadow: 0 0 0 3px rgba(34, 211, 238, .14); }
+.input::placeholder { color: #5b6584; direction: rtl; text-align: right; }
+
+.btn { cursor: pointer; border: none; padding: 11px 18px; font-weight: 700; }
+.btn-primary { background: var(--grad); color: #071018; box-shadow: 0 8px 22px rgba(96, 105, 246, .38); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:active { transform: scale(.98); }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+.btn-ghost {
+  background: rgba(148, 163, 200, .09); color: var(--text); border: 1px solid var(--card-border);
+}
+.btn-ghost:hover { background: rgba(148, 163, 200, .17); }
+
+/* ===== منطقة السحب والإفلات ===== */
+.dropzone {
+  margin-top: 14px; padding: 26px 18px; text-align: center; cursor: pointer;
+  border: 1.6px dashed rgba(124, 141, 190, .4); border-radius: 14px; color: var(--muted);
+  transition: border-color .2s, background .2s;
+}
+.dropzone:hover { border-color: rgba(34, 211, 238, .55); }
+.dropzone.dragover {
+  border-color: var(--cyan); background: rgba(34, 211, 238, .08); color: var(--text);
+}
+.dropzone .icon { font-size: 30px; margin-bottom: 6px; }
+.dropzone .formats { font-size: 12px; color: #6b7699; direction: ltr; }
+
+/* ===== قائمة المصادر ===== */
+.sources { list-style: none; margin-top: 14px; display: grid; gap: 10px; }
+.source-item {
+  display: flex; align-items: center; gap: 10px; padding: 11px 13px;
+  background: rgba(10, 14, 26, .72); border: 1px solid var(--card-border); border-radius: 12px;
+  cursor: grab; transition: border-color .15s, opacity .15s;
+}
+.source-item.dragging { opacity: .45; }
+.source-item.dragover { border-color: var(--purple); }
+.source-item .num {
+  min-width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--grad); color: #071018; font-weight: 800; font-size: 14px;
+}
+.source-item .meta { flex: 1; min-width: 0; }
+.source-item .meta .name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-item .meta .sub { font-size: 12px; color: var(--muted); direction: ltr; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-item .kind-tag { font-size: 11px; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--card-border); color: var(--muted); white-space: nowrap; }
+.icon-btn {
+  background: rgba(148, 163, 200, .08); border: 1px solid var(--card-border); color: var(--text);
+  width: 32px; height: 32px; border-radius: 9px; cursor: pointer; font-size: 14px; display: grid; place-items: center;
+  transition: background .15s;
+}
+.icon-btn:hover { background: rgba(148, 163, 200, .2); }
+.icon-btn.danger:hover { background: rgba(248, 113, 113, .18); border-color: rgba(248, 113, 113, .5); }
+
+.merge-row { display: flex; gap: 12px; align-items: center; margin-top: 16px; }
+.merge-row .btn-primary { flex: 1; padding: 14px; font-size: 16px; }
+.hint { font-size: 12.5px; color: var(--muted); }
+
+/* ===== شريط التقدم ===== */
+.progress-wrap { margin-top: 14px; }
+.stage-label { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 10px; }
+.stage-label b { color: var(--cyan); }
+.progress-track { height: 14px; border-radius: 999px; background: rgba(10, 14, 26, .8); border: 1px solid var(--card-border); overflow: hidden; }
+.progress-fill {
+  height: 100%; width: 0%; border-radius: 999px; background: var(--grad);
+  transition: width .5s ease; box-shadow: 0 0 14px rgba(129, 140, 248, .6);
+}
+.progress-sub { font-size: 12.5px; color: var(--muted); margin-top: 9px; }
+
+/* ===== النتيجة ===== */
+#resultCard video {
+  width: 100%; border-radius: 14px; background: #000; max-height: 460px; outline: none;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .5);
+}
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-top: 16px; }
+.stat {
+  background: rgba(10, 14, 26, .72); border: 1px solid var(--card-border); border-radius: 12px;
+  padding: 12px 14px; text-align: center;
+}
+.stat .v { font-size: 17px; font-weight: 800; color: var(--cyan); direction: ltr; }
+.stat .k { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.result-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.countdown {
+  margin-top: 14px; text-align: center; font-size: 13.5px; color: var(--muted);
+  background: rgba(244, 114, 182, .07); border: 1px solid rgba(244, 114, 182, .25);
+  padding: 10px; border-radius: 12px;
+}
+.countdown b { color: var(--pink); font-size: 15px; direction: ltr; unicode-bidi: embed; }
+
+/* ===== توثيق API ===== */
+details.api { margin-top: 26px; }
+details.api summary {
+  cursor: pointer; font-weight: 800; font-size: 16px; padding: 14px 18px;
+  background: var(--card); border: 1px solid var(--card-border); border-radius: var(--radius);
+  list-style: none; display: flex; align-items: center; gap: 10px;
+}
+details.api summary::-webkit-details-marker { display: none; }
+details.api summary .arrow { transition: transform .2s; color: var(--cyan); }
+details.api[open] summary .arrow { transform: rotate(90deg); }
+.api-body { padding: 18px; border: 1px solid var(--card-border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); background: rgba(12, 16, 30, .7); }
+table.endpoints { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.endpoints th, table.endpoints td { padding: 9px 10px; border-bottom: 1px solid rgba(124, 141, 190, .12); text-align: right; vertical-align: top; }
+table.endpoints th { color: var(--muted); font-size: 12px; }
+table.endpoints code { direction: ltr; unicode-bidi: embed; }
+.method { font-weight: 800; font-size: 11.5px; padding: 2px 8px; border-radius: 6px; direction: ltr; display: inline-block; }
+.method.post { background: rgba(34, 211, 238, .14); color: var(--cyan); }
+.method.get { background: rgba(52, 211, 153, .13); color: var(--ok); }
+.method.delete { background: rgba(248, 113, 113, .13); color: var(--err); }
+.curl-block { position: relative; margin-top: 14px; }
+.curl-block pre {
+  direction: ltr; text-align: left; overflow-x: auto; padding: 14px 44px 14px 14px;
+  background: #0a0e1a; border: 1px solid var(--card-border); border-radius: 12px;
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace; font-size: 12.5px; color: #c8d3f5; line-height: 1.7;
+}
+.copy-btn {
+  position: absolute; top: 10px; inset-inline-start: 10px;
+  background: rgba(148, 163, 200, .1); border: 1px solid var(--card-border); color: var(--muted);
+  font-size: 11px; padding: 4px 10px; border-radius: 8px; cursor: pointer; font-family: inherit;
+}
+.copy-btn:hover { color: var(--text); background: rgba(148, 163, 200, .22); }
+
+/* ===== التنبيهات ===== */
+#toasts { position: fixed; bottom: 18px; inset-inline-start: 18px; display: grid; gap: 9px; z-index: 99; max-width: 420px; }
+.toast {
+  padding: 12px 16px; border-radius: 12px; font-size: 13.5px; font-weight: 600;
+  background: rgba(18, 23, 40, .95); border: 1px solid var(--card-border); color: var(--text);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .45); animation: slide-in .25s ease;
+}
+.toast.err { border-color: rgba(248, 113, 113, .5); }
+.toast.ok { border-color: rgba(52, 211, 153, .5); }
+@keyframes slide-in { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+
+.hidden { display: none !important; }
+@media (max-width: 560px) {
+  h1 { font-size: 24px; }
+  .url-row { flex-direction: column; }
+  .merge-row { flex-direction: column; align-items: stretch; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-badge">🎬</div>
+  <h1>خدمة دمج الفيديوهات</h1>
+  <p class="subtitle">ارفع مقاطعك أو أضف روابط مباشرة، رتّبها كما تريد واحصل على فيديو واحد عالي الجودة MP4</p>
+  <div class="chips" id="limitsChips"></div>
+</header>
+
+<main>
+  <!-- ===== إعداد المصادر ===== -->
+  <section class="card" id="setupCard">
+    <h2><span class="dot"></span> المصادر — الترتيب هنا هو ترتيب الدمج</h2>
+
+    <div class="url-row">
+      <input class="input" id="urlInput" type="url" placeholder="https://example.com/video.mp4 — ألصق رابط فيديو مباشر">
+      <button class="btn btn-primary" id="addUrlBtn" type="button">+ إضافة رابط</button>
+    </div>
+
+    <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="منطقة رفع الملفات">
+      <div class="icon">⬆️</div>
+      <div><b>اسحب ملفات الفيديو وأفلتها هنا</b> أو انقر لاختيارها من جهازك</div>
+      <div class="formats">mp4 · mov · webm · mkv · avi · m4v · mpg · 3gp</div>
+      <input type="file" id="fileInput" class="hidden" multiple accept=".mp4,.mov,.webm,.mkv,.avi,.m4v,.mpg,.3gp">
+    </div>
+
+    <ul class="sources" id="sourceList"></ul>
+    <p class="hint hidden" id="emptyHint" style="margin-top:12px">لا توجد مصادر بعد — أضف رابطًا أو ارفع ملفًا (المصدران على الأقل).</p>
+
+    <div class="merge-row">
+      <button class="btn btn-primary" id="mergeBtn" type="button" disabled>🎥 دمج الفيديوهات</button>
+      <span class="hint" id="mergeHint">يلزم مصدران على الأقل</span>
+    </div>
+    <div class="progress-wrap hidden" id="uploadProgressWrap">
+      <div class="stage-label"><span id="uploadStage">رفع الأجزاء…</span><b id="uploadPct">0%</b></div>
+      <div class="progress-track"><div class="progress-fill" id="uploadFill"></div></div>
+    </div>
+  </section>
+
+  <!-- ===== التقدم ===== -->
+  <section class="card hidden" id="progressCard">
+    <h2><span class="dot"></span> جارٍ تنفيذ العملية</h2>
+    <div class="progress-wrap" style="margin-top:0">
+      <div class="stage-label"><span id="stageText">تهيئة…</span><b id="pctText">0%</b></div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-sub" id="progressSub">التقدم يُحدَّث مباشرة من الخادم</div>
+    </div>
+  </section>
+
+  <!-- ===== النتيجة ===== -->
+  <section class="card hidden" id="resultCard">
+    <h2><span class="dot"></span> الفيديو الناتج</h2>
+    <video id="player" controls playsinline preload="metadata"></video>
+    <div class="stats">
+      <div class="stat"><div class="v" id="statSize">—</div><div class="k">الحجم</div></div>
+      <div class="stat"><div class="v" id="statDuration">—</div><div class="k">المدة</div></div>
+      <div class="stat"><div class="v" id="statRes">—</div><div class="k">الدقة</div></div>
+    </div>
+    <div class="result-actions">
+      <a class="btn btn-primary" id="downloadBtn" style="text-decoration:none" download>⬇️ تحميل</a>
+      <button class="btn btn-ghost" id="copyBtn" type="button">🔗 نسخ الرابط</button>
+      <button class="btn btn-ghost" id="newBtn" type="button">➕ عملية جديدة</button>
+    </div>
+    <div class="countdown" id="countdown">⏳ يبقى الرابط صالحًا حتى: <b id="countdownTime">—</b></div>
+  </section>
+
+  <!-- ===== توثيق API ===== -->
+  <details class="api" id="apiDocs">
+    <summary><span class="arrow">◀</span> توثيق API — استخدم الخدمة برمجيًا</summary>
+    <div class="api-body">
+      <table class="endpoints">
+        <tr><th>Method</th><th>Endpoint</th><th>الوظيفة</th></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>/api/jobs</code></td><td>إنشاء مهمة دمج</td></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>/api/upload?job=&amp;seq=&amp;chunk=</code></td><td>رفع أجزاء الملفات (ثنائي ≤4MB)</td></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>/api/jobs/&lt;id&gt;/process</code></td><td>تنفيذ الدمج → رابط الفيديو النهائي</td></tr>
+        <tr><td><span class="method get">GET</span></td><td><code>/api/jobs/&lt;id&gt;</code></td><td>الحالة + التقدم + الرابط عند الاكتمال</td></tr>
+        <tr><td><span class="method get">GET</span></td><td><code>/api/jobs/&lt;id&gt;/video</code></td><td>بث الناتج (Range مدعوم) — <code>?download=1</code> للتحميل</td></tr>
+        <tr><td><span class="method delete">DELETE</span></td><td><code>/api/jobs/&lt;id&gt;</code></td><td>حذف فوري شامل</td></tr>
+        <tr><td><span class="method get">GET</span></td><td><code>/api/config</code></td><td>الحدود العامة + version</td></tr>
+        <tr><td><span class="method get">GET</span></td><td><code>/api/cron</code></td><td>حذف المهام المنتهية (Cron يومي)</td></tr>
+      </table>
+
+      <div class="curl-block">
+        <button class="copy-btn" data-copy-target="curl1">نسخ</button>
+        <pre id="curl1" data-tpl='curl -X POST {ORIGIN}/api/jobs -H "Content-Type: application/json" -d "{\"videos\":[\"https://example.com/a.mp4\",\"https://example.com/b.mp4\"]}"'></pre>
+      </div>
+      <div class="curl-block">
+        <button class="copy-btn" data-copy-target="curl2">نسخ</button>
+        <pre id="curl2" data-tpl='curl -X POST {ORIGIN}/api/jobs/<JOB_ID>/process'></pre>
+      </div>
+      <div class="curl-block">
+        <button class="copy-btn" data-copy-target="curl3">نسخ</button>
+        <pre id="curl3" data-tpl='curl {ORIGIN}/api/jobs/<JOB_ID>        # الحالة والتقدم
+curl -o out.mp4 {ORIGIN}/api/jobs/<JOB_ID>/video   # بث/تحميل
+curl -X DELETE {ORIGIN}/api/jobs/<JOB_ID>          # حذف شامل'></pre>
+      </div>
+      <p class="hint" style="margin-top:12px">كل الاستجابات تحمل ترويسة CORS مفتوحة، والأخطاء بصيغة <code>{"error":"..."}</code>.</p>
+    </div>
+  </details>
+</main>
+
+<div id="toasts"></div>
+
+<script>
+'use strict';
+/* ===== الحالة العامة ===== */
+const state = {
+  sources: [],          // [{kind:'url',url}|{kind:'file',file}]
+  config: null,
+  pollTimer: null,
+  countdownTimer: null,
+  busy: false,
+};
+const $ = (id) => document.getElementById(id);
+const ACCEPT_EXT = ['mp4','mov','webm','mkv','avi','m4v','mpg','3gp'];
+
+/* ===== أدوات مساعدة ===== */
+function toast(msg, kind) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind ? ' ' + kind : '');
+  el.textContent = msg;
+  $('toasts').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .4s'; }, 3800);
+  setTimeout(() => el.remove(), 4300);
+}
+function fmtBytes(n) {
+  if (!n && n !== 0) return '—';
+  if (n >= 1024 * 1024 * 1024) return (n / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+  if (n >= 1024 * 1024) return (n / 1024 / 1024).toFixed(1) + ' MB';
+  return Math.ceil(n / 1024) + ' KB';
+}
+function fmtDuration(sec) {
+  if (!Number.isFinite(sec)) return '—';
+  const s = Math.round(sec);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(r).padStart(2, '0');
+}
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  let data = null;
+  try { data = await r.json(); } catch { /* بث ثنائي أو جسم فارغ */ }
+  return { ok: r.ok, status: r.status, data };
+}
+
+/* ===== تحميل الحدود من الخادم ===== */
+async function loadConfig() {
+  try {
+    const { ok, data } = await api('/api/config');
+    if (!ok || !data) return;
+    state.config = data;
+    $('limitsChips').innerHTML = [
+      `حتى <b>${data.maxSources}</b> مصادر`,
+      `حتى <b>${data.sourceMaxMB}MB</b> لكل مصدر`,
+      `ناتج حتى <b>${data.outputMaxMB}MB</b>`,
+      `مدة حتى <b>${Math.round(data.maxTotalDurationSec / 60)}</b> دقائق`,
+      `<b>v${data.version}</b>`,
+    ].map((t) => `<span class="chip">${t}</span>`).join('');
+  } catch { /* الواجهة تعمل حتى لو فشل جلب الحدود */ }
+}
+
+/* ===== إضافة الروابط والملفات ===== */
+function addUrl(url) {
+  url = (url || '').trim();
+  if (!/^https?:\/\/.+/i.test(url)) { toast('رابط غير صالح — يجب أن يبدأ بـ http أو https', 'err'); return false; }
+  if (state.sources.some((s) => s.kind === 'url' && s.url === url)) { toast('الرابط مضاف مسبقًا', 'err'); return false; }
+  if (state.sources.length >= (state.config ? state.config.maxSources : 10)) { toast('وصلت للحد الأقصى من المصادر', 'err'); return false; }
+  state.sources.push({ kind: 'url', url });
+  renderSources();
+  return true;
+}
+function addFiles(fileList) {
+  let added = 0;
+  for (const file of fileList) {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (!ACCEPT_EXT.includes(ext)) { toast(`صيغة غير مدعومة: ${file.name}`, 'err'); continue; }
+    const maxMB = state.config ? state.config.sourceMaxMB : 200;
+    if (file.size > maxMB * 1024 * 1024) { toast(`الملف ${file.name} يتجاوز ${maxMB}MB`, 'err'); continue; }
+    if (state.sources.length >= (state.config ? state.config.maxSources : 10)) { toast('وصلت للحد الأقصى من المصادر', 'err'); break; }
+    state.sources.push({ kind: 'file', file });
+    added++;
+  }
+  if (added) toast(`أُضيف ${added} ملف`, 'ok');
+  renderSources();
+}
+function moveSource(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= state.sources.length) return;
+  [state.sources[i], state.sources[j]] = [state.sources[j], state.sources[i]];
+  renderSources();
+}
+function removeSource(i) { state.sources.splice(i, 1); renderSources(); }
+
+/* ===== رسم القائمة (سحب + أزرار ↑↓ + حذف) ===== */
+let dragIndex = -1;
+function renderSources() {
+  const list = $('sourceList');
+  list.innerHTML = '';
+  state.sources.forEach((s, i) => {
+    const li = document.createElement('li');
+    li.className = 'source-item';
+    li.draggable = true;
+    li.dataset.index = i;
+    li.innerHTML = `
+      <div class="num">${i + 1}</div>
+      <div class="meta">
+        <div class="name"></div>
+        <div class="sub"></div>
+      </div>
+      <span class="kind-tag">${s.kind === 'url' ? 'رابط' : 'ملف'}</span>
+      <button class="icon-btn" data-act="up" title="إلى الأعلى">↑</button>
+      <button class="icon-btn" data-act="down" title="إلى الأسفل">↓</button>
+      <button class="icon-btn danger" data-act="del" title="حذف">✕</button>`;
+    if (s.kind === 'url') {
+      li.querySelector('.name').textContent = s.url.length > 60 ? s.url.slice(0, 57) + '…' : s.url;
+      li.querySelector('.name').style.direction = 'ltr';
+      li.querySelector('.sub').textContent = 'مصدر مباشر من الإنترنت';
+    } else {
+      li.querySelector('.name').textContent = s.file.name;
+      li.querySelector('.sub').textContent = fmtBytes(s.file.size);
+    }
+    li.addEventListener('dragstart', (e) => { dragIndex = i; li.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; });
+    li.addEventListener('dragend', () => { li.classList.remove('dragging'); });
+    li.addEventListener('dragover', (e) => { e.preventDefault(); li.classList.add('dragover'); });
+    li.addEventListener('dragleave', () => li.classList.remove('dragover'));
+    li.addEventListener('drop', (e) => {
+      e.preventDefault(); e.stopPropagation();
+      li.classList.remove('dragover');
+      if (dragIndex >= 0 && dragIndex !== i) {
+        const [moved] = state.sources.splice(dragIndex, 1);
+        state.sources.splice(i, 0, moved);
+        renderSources();
+      }
+      dragIndex = -1;
+    });
+    li.querySelectorAll('.icon-btn').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const act = btn.dataset.act;
+        if (act === 'up') moveSource(i, -1);
+        else if (act === 'down') moveSource(i, 1);
+        else removeSource(i);
+      });
+    });
+    list.appendChild(li);
+  });
+  $('emptyHint').classList.toggle('hidden', state.sources.length > 0);
+  const enough = state.sources.length >= 2;
+  $('mergeBtn').disabled = !enough || state.busy;
+  $('mergeHint').textContent = enough ? 'الترتيب أعلاه هو ترتيب الدمج' : 'يلزم مصدران على الأقل';
+}
+
+/* ===== شريط التقدم ===== */
+function setProgress(pct, stageText, subText) {
+  $('progressCard').classList.remove('hidden');
+  $('progressFill').style.width = Math.max(0, Math.min(100, pct)) + '%';
+  $('pctText').textContent = Math.round(Math.max(0, Math.min(100, pct))) + '%';
+  if (stageText) $('stageText').textContent = stageText;
+  if (subText) $('progressSub').textContent = subText;
+}
+function stageFor(pct) {
+  if (pct < 40) return 'سحب المصادر وتجهيزها…';
+  if (pct < 90) return 'ترميز الفيديو النهائي…';
+  if (pct < 100) return 'حفظ الناتج…';
+  return 'اكتمل!';
+}
+
+/* ===== الرفع الثنائي بأجزاء 4MB مع إعادة محاولة ×3 ===== */
+async function uploadWithRetry(url, blob, label) {
+  const MAX_TRIES = 3;
+  for (let attempt = 1; attempt <= MAX_TRIES; attempt++) {
+    try {
+      const r = await fetch(url, { method: 'POST', body: blob });
+      const data = await r.json().catch(() => null);
+      if (r.ok && data && data.ok) return;
+      throw new Error((data && data.error) || `رمز الحالة ${r.status}`);
+    } catch (e) {
+      if (attempt === MAX_TRIES) throw new Error(`فشل رفع ${label} بعد ${MAX_TRIES} محاولات: ${e.message}`);
+      await new Promise((res) => setTimeout(res, 700 * attempt)); // تأخير متزايد قبل إعادة المحاولة
+    }
+  }
+}
+async function uploadAllFiles(jobId, uploads) {
+  const wrap = $('uploadProgressWrap');
+  wrap.classList.remove('hidden');
+  const totalChunks = uploads.reduce((a, u) => a + Math.ceil(u.size / state.config.uploadChunkBytes), 0);
+  let doneChunks = 0;
+  for (const u of uploads) {
+    const chunkBytes = state.config.uploadChunkBytes;
+    const chunks = Math.ceil(u.size / chunkBytes);
+    for (let k = 0; k < chunks; k++) {
+      const blob = u.file.slice(k * chunkBytes, (k + 1) * chunkBytes); // نقرأ من الملف مباشرة دون تحميله كاملًا في الذاكرة
+      $('uploadStage').textContent = `رفع: ${u.name} — الجزء ${k + 1}/${chunks}`;
+      await uploadWithRetry(`${u.uploadUrl}&chunk=${k}`, blob, `الجزء ${k + 1} من ${u.name}`);
+      doneChunks++;
+      const pct = Math.round((doneChunks / totalChunks) * 100);
+      $('uploadPct').textContent = pct + '%';
+      $('uploadFill').style.width = pct + '%';
+    }
+  }
+  wrap.classList.add('hidden');
+}
+
+/* ===== التدفق الكامل: إنشاء → رفع → دمج → نتيجة ===== */
+async function startMerge() {
+  if (state.busy || state.sources.length < 2) return;
+  state.busy = true;
+  $('mergeBtn').disabled = true;
+  $('resultCard').classList.add('hidden');
+  stopPolling();
+
+  try {
+    // 1) إنشاء المهمة
+    setProgress(0, 'إنشاء المهمة…');
+    const payload = {
+      sources: state.sources.map((s) => s.kind === 'url'
+        ? { kind: 'url', url: s.url }
+        : { kind: 'file', name: s.file.name, size: s.file.size, mime: s.file.type || 'video/mp4' }),
+    };
+    const created = await api('/api/jobs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!created.ok || !created.data) throw new Error(created.data ? created.data.error : 'فشل إنشاء المهمة');
+    const { jobId, statusUrl, processUrl, uploads } = created.data;
+    history.replaceState(null, '', `#job=${jobId}`);
+
+    // 2) رفع أجزاء الملفات إن وُجدت
+    if (uploads && uploads.length) {
+      if (!state.config) await loadConfig();
+      for (const u of uploads) { u.file = state.sources[u.seq] && state.sources[u.seq].file; }
+      await uploadAllFiles(jobId, uploads);
+    }
+
+    // 3) تنفيذ الدمج + استطلاع التقدم كل ثانية من الخادم
+    setProgress(1, 'بدء المعالجة…');
+    const processPromise = api(processUrl, { method: 'POST' }).catch((e) => ({ ok: false, data: { error: e.message } }));
+    startPolling(jobId, statusUrl, processPromise);
+    const res = await processPromise;
+    if (res.ok && res.data && res.data.status === 'done') {
+      showResult(res.data);
+    } else if (res.ok && res.data && res.data.status === 'processing') {
+      /* نستمر بالاستطلاع حتى الاكتمال */
+    } else {
+      throw new Error(res.data ? res.data.error : 'فشل تنفيذ الدمج');
+    }
+  } catch (e) {
+    setProgress(0, 'فشلت العملية', e.message);
+    toast(e.message || 'حدث خطأ غير متوقع', 'err');
+    state.busy = false;
+    renderSources();
+  }
+}
+
+/* استطلاع GET /api/jobs/{id} كل ثانية أثناء process */
+function startPolling(jobId, statusUrl, processPromise) {
+  stopPolling();
+  state.pollTimer = setInterval(async () => {
+    try {
+      const { ok, data } = await api(statusUrl);
+      if (!ok || !data) return;
+      if (data.status === 'processing') {
+        setProgress(data.progress || 0, stageFor(data.progress || 0), 'التقدم يُحدَّث مباشرة من الخادم');
+      } else if (data.status === 'done') {
+        stopPolling();
+        state.busy = false;
+        showResult({ status: 'done', videoUrl: data.videoUrl, downloadUrl: data.downloadUrl, size: data.size, duration: data.duration, resolution: data.resolution, expiresAt: data.expiresAt, jobId });
+      } else if (data.status === 'failed') {
+        stopPolling();
+        state.busy = false;
+        renderSources();
+        setProgress(0, 'فشلت العملية', data.error || 'خطأ غير معروف');
+        toast(data.error || 'فشل الدمج', 'err');
+      }
+    } catch { /* تجاهل أخطاء الشبكة العابرة أثناء الاستطلاع */ }
+  }, 1000);
+}
+function stopPolling() { if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; } }
+
+/* ===== النتيجة ===== */
+function showResult(data) {
+  stopPolling();
+  state.busy = false;
+  renderSources();
+  $('progressCard').classList.add('hidden');
+  $('uploadProgressWrap').classList.add('hidden');
+  $('resultCard').classList.remove('hidden');
+  $('resultCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const player = $('player');
+  player.src = data.videoUrl;
+  $('statSize').textContent = fmtBytes(data.size);
+  $('statDuration').textContent = fmtDuration(data.duration);
+  $('statRes').textContent = data.resolution || '—';
+  $('downloadBtn').href = data.downloadUrl || (data.videoUrl + '?download=1');
+  $('downloadBtn').setAttribute('data-url', data.videoUrl);
+  $('copyBtn').setAttribute('data-url', data.videoUrl);
+
+  startCountdown(data.expiresAt);
+  toast('اكتمل الدمج بنجاح 🎉', 'ok');
+}
+function startCountdown(expiresAt) {
+  if (state.countdownTimer) clearInterval(state.countdownTimer);
+  const target = new Date(expiresAt).getTime();
+  const tick = () => {
+    const diff = target - Date.now();
+    if (diff <= 0) {
+      $('countdownTime').textContent = '00:00:00 — انتهت الصلاحية';
+      clearInterval(state.countdownTimer);
+      return;
+    }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    $('countdownTime').textContent =
+      String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  };
+  tick();
+  state.countdownTimer = setInterval(tick, 1000);
+}
+
+/* عملية جديدة: تنظيف كامل + إزالة الهاش */
+function resetAll() {
+  state.sources = [];
+  state.busy = false;
+  stopPolling();
+  if (state.countdownTimer) clearInterval(state.countdownTimer);
+  $('player').removeAttribute('src');
+  $('player').load();
+  $('resultCard').classList.add('hidden');
+  $('progressCard').classList.add('hidden');
+  $('uploadProgressWrap').classList.add('hidden');
+  $('urlInput').value = '';
+  history.replaceState(null, '', location.pathname);
+  renderSources();
+  $('setupCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+/* ===== استئناف العرض بعد تحديث الصفحة عبر #job=<id> ===== */
+async function resumeFromHash() {
+  const m = /^#job=(.+)$/.exec(location.hash);
+  if (!m) return;
+  const jobId = m[1];
+  try {
+    const { ok, data } = await api(`/api/jobs/${encodeURIComponent(jobId)}`);
+    if (!ok || !data) { toast(data && data.error ? data.error : 'المهمة المطلوبة غير موجودة', 'err'); return; }
+    if (data.status === 'done') { showResult(data); return; }
+    if (data.status === 'processing') {
+      setProgress(data.progress || 0, stageFor(data.progress || 0), 'استؤنف الاستطلاع تلقائيًا…');
+      startPolling(jobId, `/api/jobs/${jobId}`, null);
+      return;
+    }
+    toast(`المهمة في حالة: ${data.status} — لم تُعالَج بعد`, 'err');
+  } catch { toast('تعذر استئناف المهمة', 'err'); }
+}
+
+/* ===== توثيق API: تعبئة الدومين الحقيقي وأزرار النسخ ===== */
+function initApiDocs() {
+  document.querySelectorAll('[data-tpl]').forEach((el) => {
+    el.textContent = el.getAttribute('data-tpl').replaceAll('{ORIGIN}', window.location.origin);
+  });
+  document.querySelectorAll('.copy-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const target = $(btn.getAttribute('data-copy-target'));
+      copyText(target ? target.textContent : '');
+    });
+  });
+}
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('تم النسخ إلى الحافظة', 'ok');
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+    toast('تم النسخ إلى الحافظة', 'ok');
+  }
+}
+
+/* ===== ربط الأحداث ===== */
+$('addUrlBtn').addEventListener('click', () => {
+  if (addUrl($('urlInput').value)) $('urlInput').value = '';
+});
+$('urlInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && addUrl($('urlInput').value)) $('urlInput').value = '';
+});
+const dz = $('dropzone');
+dz.addEventListener('click', () => $('fileInput').click());
+dz.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') $('fileInput').click(); });
+$('fileInput').addEventListener('change', (e) => { addFiles(e.target.files); e.target.value = ''; });
+['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove('dragover'); }));
+dz.addEventListener('drop', (e) => { if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+// منع المتصفح من فتح الملفات عند الإفلات خارج المنطقة
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => e.preventDefault());
+$('mergeBtn').addEventListener('click', startMerge);
+$('newBtn').addEventListener('click', resetAll);
+$('copyBtn').addEventListener('click', (e) => copyText(e.currentTarget.getAttribute('data-url') || ''));
+
+/* ===== الإقلاع ===== */
+loadConfig();
+renderSources();
+initApiDocs();
+resumeFromHash();
+</script>
+</body>
+</html>
