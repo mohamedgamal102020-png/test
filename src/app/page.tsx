@@ -22,6 +22,7 @@ import {
   Image as ImageIcon,
   KeyRound,
   Link2,
+  LockKeyhole,
   ListVideo,
   Merge,
   Plug,
@@ -133,9 +134,80 @@ function statusBadgeClass(status: string): string {
   }
 }
 
+// ---------- حماية الواجهات الإدارية ----------
+// إذا ضُبط MCP_ACCESS_TOKEN على الخادم فتتطلب /api/keys و /api/tasks الترويسة x-admin-token
+function useAdminToken() {
+  const [token, setToken] = useState("");
+  const [locked, setLocked] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setToken(localStorage.getItem("mg.adminToken") || "");
+      setReady(true);
+    }, 0);
+    // تزامن بين البطاقتين: إدخال الرمز في واحدة يفتح الأخرى فورًا
+    const onExternal = () => setToken(localStorage.getItem("mg.adminToken") || "");
+    window.addEventListener("mg-token-changed", onExternal);
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener("mg-token-changed", onExternal);
+    };
+  }, []);
+
+  const saveToken = useCallback((t: string) => {
+    const v = t.trim();
+    localStorage.setItem("mg.adminToken", v);
+    setToken(v);
+    setLocked(false);
+    window.dispatchEvent(new Event("mg-token-changed"));
+  }, []);
+
+  return { token, locked, setLocked, ready, saveToken };
+}
+
+async function apiFetch(path: string, token: string, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("x-admin-token", token);
+  return fetch(path, { ...init, headers, cache: "no-store" });
+}
+
+function TokenGate({ onSave }: { onSave: (t: string) => void }) {
+  const [value, setValue] = useState("");
+  return (
+    <div className="space-y-3 py-2">
+      <div className="flex items-center gap-2 text-sm font-medium text-amber-300">
+        <LockKeyhole className="h-4 w-4 shrink-0" />
+        لوحة الإدارة محمية — أدخل رمز الحماية (نفس قيمة MCP_ACCESS_TOKEN المضبوطة على الخادم)
+      </div>
+      <div className="flex gap-2">
+        <Input
+          dir="ltr"
+          type="password"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && value.trim() && onSave(value)}
+          placeholder="رمز الحماية"
+          className="border-zinc-700 bg-zinc-950 text-left font-mono text-zinc-100 placeholder:text-zinc-500"
+        />
+        <Button
+          onClick={() => value.trim() && onSave(value)}
+          className="shrink-0 whitespace-nowrap bg-teal-600 text-white hover:bg-teal-500"
+        >
+          فتح اللوحة
+        </Button>
+      </div>
+      <p className="text-xs leading-relaxed text-zinc-500">
+        يُحفظ الرمز في متصفحك فقط ويُرسل مع كل طلبات الإدارة. لضبطه على الخادم: أضف المتغير MCP_ACCESS_TOKEN في إعدادات Vercel ثم أعد النشر.
+      </p>
+    </div>
+  );
+}
+
 // ---------- البطاقة: مدير المفاتيح ----------
 function KeysCard() {
   const { toast } = useToast();
+  const { token, locked, setLocked, saveToken } = useAdminToken();
   const [keys, setKeys] = useState<MaskedKey[]>([]);
   const [provider, setProvider] = useState("kie");
   const [label, setLabel] = useState("");
@@ -144,13 +216,17 @@ function KeysCard() {
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch("/api/keys", { cache: "no-store" });
+      const r = await apiFetch("/api/keys", token);
+      if (r.status === 401) {
+        setLocked(true);
+        return;
+      }
       const j = await r.json();
       setKeys(j.keys ?? []);
     } catch {
       /* تجاهل أخطاء التحديث الدوري */
     }
-  }, []);
+  }, [token, setLocked]);
 
   useEffect(() => {
     load();
@@ -165,11 +241,15 @@ function KeysCard() {
     }
     setBusy(true);
     try {
-      const r = await fetch("/api/keys", {
+      const r = await apiFetch("/api/keys", token, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider, api_key: apiKey.trim(), label: label.trim() }),
       });
+      if (r.status === 401) {
+        setLocked(true);
+        return;
+      }
       const j = await r.json();
       if (!r.ok) {
         toast({ title: j.error || "فشل إضافة المفتاح", variant: "destructive" });
@@ -186,11 +266,15 @@ function KeysCard() {
 
   const toggle = async (k: MaskedKey) => {
     const next = k.status === "disabled" ? "active" : "disabled";
-    const r = await fetch(`/api/keys/${k.id}`, {
+    const r = await apiFetch(`/api/keys/${k.id}`, token, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: next }),
     });
+    if (r.status === 401) {
+      setLocked(true);
+      return;
+    }
     if (r.ok) {
       toast({ title: next === "disabled" ? "تم تعطيل المفتاح" : "تم تنشيط المفتاح" });
       load();
@@ -198,12 +282,32 @@ function KeysCard() {
   };
 
   const remove = async (k: MaskedKey) => {
-    const r = await fetch(`/api/keys/${k.id}`, { method: "DELETE" });
+    const r = await apiFetch(`/api/keys/${k.id}`, token, { method: "DELETE" });
+    if (r.status === 401) {
+      setLocked(true);
+      return;
+    }
     if (r.ok) {
       toast({ title: "تم حذف المفتاح" });
       load();
     }
   };
+
+  if (locked) {
+    return (
+      <Card className="border-zinc-800 bg-zinc-900/60 backdrop-blur">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-zinc-100">
+            <KeyRound className="h-5 w-5 text-teal-300" />
+            مدير المفاتيح
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TokenGate onSave={saveToken} />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="border-zinc-800 bg-zinc-900/60 backdrop-blur">
@@ -301,13 +405,18 @@ function KeysCard() {
 
 // ---------- البطاقة: لوحة المهام ----------
 function TasksCard() {
+  const { token, locked, setLocked, saveToken } = useAdminToken();
   const [stats, setStats] = useState({ total: 0, completed: 0, failed: 0, processing: 0 });
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [initialLoaded, setInitialLoaded] = useState(false);
 
   const load = useCallback(async () => {
     try {
-      const r = await fetch("/api/tasks?limit=20", { cache: "no-store" });
+      const r = await apiFetch("/api/tasks?limit=20", token);
+      if (r.status === 401) {
+        setLocked(true);
+        return;
+      }
       const j = await r.json();
       setStats(j.stats ?? { total: 0, completed: 0, failed: 0, processing: 0 });
       setTasks(j.tasks ?? []);
@@ -315,7 +424,7 @@ function TasksCard() {
     } catch {
       /* تجاهل */
     }
-  }, []);
+  }, [token, setLocked]);
 
   useEffect(() => {
     const id = setTimeout(load, 0);
@@ -357,7 +466,9 @@ function TasksCard() {
         </div>
       </CardHeader>
       <CardContent>
-        {!initialLoaded && tasks.length === 0 ? (
+        {locked ? (
+          <TokenGate onSave={saveToken} />
+        ) : !initialLoaded && tasks.length === 0 ? (
           <p className="text-sm text-zinc-500 py-6 text-center">جارٍ التحميل…</p>
         ) : tasks.length === 0 ? (
           <p className="text-sm text-zinc-500 py-6 text-center">

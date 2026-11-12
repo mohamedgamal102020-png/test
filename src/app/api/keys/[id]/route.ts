@@ -1,10 +1,13 @@
 // عمليات المفتاح الواحد — PATCH تعطيل/تنشيط يدوي + DELETE حذف
 import { deleteKey, getKey, setKeyStatus, toMasked } from "@/lib/keys";
+import { checkAdminToken } from "@/lib/admin-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function PATCH(webReq: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+  const denied = checkAdminToken(webReq);
+  if (denied) return denied;
   const { id } = await ctx.params;
   let body: { status?: string };
   try {
@@ -22,7 +25,9 @@ export async function PATCH(webReq: Request, ctx: { params: Promise<{ id: string
   return Response.json({ ok: true, key: k ? toMasked(k) : null }, { headers: { "Cache-Control": "no-store" } });
 }
 
-export async function DELETE(_webReq: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+export async function DELETE(webReq: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+  const denied = checkAdminToken(webReq);
+  if (denied) return denied;
   const { id } = await ctx.params;
   const ok = await deleteKey(id);
   if (!ok) return Response.json({ error: "المفتاح غير موجود" }, { status: 404 });
